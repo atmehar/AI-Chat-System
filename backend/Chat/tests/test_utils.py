@@ -7,7 +7,7 @@ from ..utils import call_gemini, generate_chat_response
 
 
 class GeminiApiTests(SimpleTestCase):
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_call_gemini_uses_current_model_name(self, mock_post):
         mock_response = Mock()
         mock_response.status_code = 429
@@ -22,7 +22,7 @@ class GeminiApiTests(SimpleTestCase):
         called_url = mock_post.call_args.args[0]
         self.assertIn('gemini-3.6-flash', called_url)
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_parses_structured_json(self, mock_post):
         mock_response = Mock()
         mock_response.status_code = 200
@@ -36,7 +36,7 @@ class GeminiApiTests(SimpleTestCase):
         self.assertEqual(result['content'], '{"name": "Ada", "intent": "help"}')
         self.assertEqual(result['provider'], 'openai')
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_falls_back_to_next_provider(self, mock_post):
         first_response = Mock(status_code=500, text='server over capacity')
         first_response.json.return_value = {'error': {'message': 'server over capacity'}}
@@ -50,7 +50,7 @@ class GeminiApiTests(SimpleTestCase):
         self.assertEqual(result['content'], 'fallback reply')
         self.assertEqual(result['provider'], 'claude')
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_falls_back_from_gemini(self, mock_post):
         gemini_error = Mock(status_code=429, text='quota exceeded')
         gemini_error.json.return_value = {'error': {'message': 'quota exceeded'}}
@@ -64,7 +64,7 @@ class GeminiApiTests(SimpleTestCase):
         self.assertEqual(result['content'], 'recovered reply')
         self.assertEqual(result['provider'], 'openai')
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_executes_tool_call_and_returns_result(self, mock_post):
         first_response = Mock(status_code=200, text='Tool call: calculate(2+2)')
         first_response.json.return_value = {'choices': [{'message': {'content': 'Tool call: calculate(2+2)'}}]}
@@ -78,7 +78,7 @@ class GeminiApiTests(SimpleTestCase):
         self.assertIn('4', result['content'])
         self.assertEqual(result['provider'], 'openai')
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_cleans_markdown_formatting(self, mock_post):
         response = Mock(status_code=200, text='**Bold** text and `code` with [link](https://example.com).')
         response.json.return_value = {'choices': [{'message': {'content': response.text}}]}
@@ -90,7 +90,7 @@ class GeminiApiTests(SimpleTestCase):
         self.assertEqual(result['content'], 'Bold text and code with link.')
         self.assertEqual(result['provider'], 'openai')
 
-    @patch('Chat.utils.requests.post')
+    @patch('llm_gateway.providers.common.requests.post')
     def test_generate_chat_response_validates_schema(self, mock_post):
         response = Mock(status_code=200, text='{"name": "Ada"}')
         response.json.return_value = {'choices': [{'message': {'content': '{"name": "Ada"}'}}]}
