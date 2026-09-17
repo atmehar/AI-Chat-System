@@ -1,0 +1,1 @@
+{"id":"tool-001","input":"Calculate 2 + 2","expected_tool":"calculate","expected_contains":["4"]}

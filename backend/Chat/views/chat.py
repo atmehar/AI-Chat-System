@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ai_guardrails import GuardrailViolation, check_input, check_output, check_tool
 from ..models import Conversation, Message
 from ..utils import generate_chat_response
 
@@ -53,10 +54,16 @@ class ChatView(APIView):
         if provider in {'openai', 'claude', 'gemini'}:
             conversation.provider = provider
             conversation.save(update_fields=['provider', 'updated_at'])
+        messages = _formatted_messages(conversation)
+        messages.append({'role': 'user', 'content': content})
+        try:
+            check_input(messages)
+        except GuardrailViolation as exc:
+            return Response({'error': str(exc), 'code': exc.code}, status=400)
         Message.objects.create(conversation=conversation, role='user', content=content, tool_name='', tool_response='')
 
         try:
-            result = generate_chat_response(_formatted_messages(conversation), provider=conversation.provider, response_format=response_format)
+            result = check_output(generate_chat_response(_formatted_messages(conversation), provider=conversation.provider, response_format=response_format))
             provider_used = result.get('provider') or conversation.provider
             assistant_content = result.get('content') or ''
             assistant_message = Message.objects.create(
@@ -96,12 +103,19 @@ class StreamChatView(APIView):
         if provider in {'openai', 'claude', 'gemini'}:
             conversation.provider = provider
             conversation.save(update_fields=['provider', 'updated_at'])
+        try:
+            messages = _formatted_messages(conversation)
+            messages.append({'role': 'user', 'content': content})
+            check_input(messages)
+        except GuardrailViolation as exc:
+            return Response({'error': str(exc), 'code': exc.code}, status=400)
         Message.objects.create(conversation=conversation, role='user', content=content, tool_name='', tool_response='')
         formatted_messages = _formatted_messages(conversation)
 
         def event_stream():
             try:
                 response_payload = generate_chat_response(formatted_messages, provider=conversation.provider, response_format=response_format)
+                response_payload = check_output(response_payload)
                 provider_used = response_payload.get('provider', conversation.provider)
                 text = response_payload.get('content', '') or ''
                 parts = []

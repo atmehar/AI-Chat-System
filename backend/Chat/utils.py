@@ -4,6 +4,7 @@ import os
 import re
 import time
 import requests
+from ai_guardrails import check_tool
 from .tools import execute_tool_call
 
 logger = logging.getLogger(__name__)
@@ -348,6 +349,7 @@ def generate_chat_response(messages, provider="openai", response_format=None, fa
             if tool_call:
                 tool_name = tool_call.get("name")
                 tool_arguments = tool_call.get("arguments", {}) or {}
+                check_tool(tool_name, tool_arguments)
                 tool_result = execute_tool_call(tool_name, tool_arguments)
                 messages_with_tool = list(messages)
                 messages_with_tool.append({"role": "assistant", "content": response_payload.get("content", "")})
